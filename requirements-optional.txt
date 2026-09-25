@@ -1,0 +1,64 @@
+# ============================================================
+# 恋爱大师 - 按需安装的扩展依赖
+# 说明：这些依赖体积较大或需要额外系统环境（如 Playwright 浏览器内核），
+#      默认不装，用到对应功能时再执行：
+#      pip install -r requirements-optional.txt
+#
+# ⚠️ 重要：请勿一次性安装本文件全部内容。
+#    各组之间存在互斥，安装后可能破坏核心依赖。
+#    按需逐组安装，装完执行 python -m pip check 校验。
+#    推荐分批命令：
+#      pip install reportlab==4.2.5 chardet==5.2.0      # PDF
+#      pip install playwright==1.49.1                    # 网页抓取
+#      pip install ollama>=0.5.0                         # 本地模型
+#      pip install pytest==8.3.4 pytest-asyncio ruff     # 开发调试
+# ============================================================
+
+# ---------- MCP 模型上下文协议（当前不可用，已封存） ----------
+# 实测：mcp 1.30 / 2.2.0 及 langchain-mcp-adapters 均要求
+#      sse-starlette>=3.0 → starlette>=0.49 → pydantic>=2.13.5，
+#      会强制升级 starlette 至 1.6.0，直接搞坏 fastapi 0.115.6 与 langchain 0.3.14。
+#      与当前核心栈根本冲突，故不启用。
+#      如需 MCP，须整体迁移到 langchain 1.x + fastapi 新版 + pydantic 2.13 栈。
+# langchain-mcp-adapters
+# mcp
+
+# ---------- LlamaIndex（可选，当前代码未直接引用） ----------
+# 必须锁 0.12.x：0.13+ 改为独立 llama-index-workflows 生态，要求 pydantic>=2.11.5，
+# 且会连带升级 starlette 到 1.x，直接搞坏 fastapi 0.115.6。切勿放开版本。
+llama-index-core==0.12.8
+# 不装 llama-index-vector-stores-postgres：它依赖 asyncpg，
+# asyncpg 无 Python 3.13 预编译轮子、需 VS C++ 编译器。
+# 本项目 PGVector 访问由核心依赖 psycopg + langchain-postgres 承担。
+# llama-index-vector-stores-postgres==0.3.0
+
+# ---------- 非结构化文档解析（注意：仅支持 Python < 3.13） ----------
+# 若使用 Python 3.13，请跳过此项；Markdown 加载已由 app/rag/document_loader.py 自建实现
+# unstructured==0.16.11
+
+# ---------- 网页抓取 ----------
+requests==2.32.3
+httpx==0.28.1
+playwright==1.49.1
+
+# ---------- 第三方检索/图库接口（SearchAPI / Pexels） ----------
+google-search-results==2.4.2
+
+# ---------- PDF 报告生成（ReportLab） ----------
+# chardet 需锁 5.x：reportlab 会拉入最新 chardet 7.x，
+# 触发 requests 的 RequestsDependencyWarning 刷屏（虽无害但干扰排错）
+reportlab==4.2.5
+chardet==5.2.0
+
+# ---------- 本地大模型部署 ----------
+# 不锁版本：ollama 0.4.x 要求 httpx<0.28.0，与核心依赖的 httpx 0.28.1 冲突
+ollama>=0.5.0
+
+# ---------- 高性能序列化 ----------
+orjson==3.10.13
+msgpack==1.1.0
+
+# ---------- 开发调试 ----------
+pytest==8.3.4
+pytest-asyncio==0.25.0
+ruff==0.8.4

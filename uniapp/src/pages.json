@@ -1,0 +1,35 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "恋爱大师",
+        "navigationBarBackgroundColor": "#ff4d6d",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/love/love",
+      "style": {
+        "navigationBarTitleText": "AI 恋爱大师",
+        "navigationBarBackgroundColor": "#ff4d6d",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/manus/manus",
+      "style": {
+        "navigationBarTitleText": "AI 超级智能体",
+        "navigationBarBackgroundColor": "#6c5ce7",
+        "navigationBarTextStyle": "white"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "恋爱大师",
+    "navigationBarBackgroundColor": "#ff4d6d",
+    "backgroundColor": "#fff5f7",
+    "backgroundTextStyle": "dark"
+  }
+}

@@ -1,0 +1,40 @@
+# ============================================================
+# 恋爱大师 - Python 核心依赖（必装，保证项目可启动）
+# 架构：Python 3.12 + FastAPI + LangChain / LangGraph
+# ============================================================
+
+# ---------- Web 服务层 ----------
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# ---------- 配置与校验 ----------
+pydantic==2.10.4
+pydantic-settings==2.7.0
+python-dotenv==1.0.1
+
+# ---------- LangChain 核心 ----------
+langchain==0.3.14
+langchain-core==0.3.29
+langchain-community==0.3.14
+langchain-text-splitters==0.3.5
+langchain-openai==0.2.14
+langchain-postgres==0.0.13
+
+# ---------- LangGraph 智能体编排 ----------
+langgraph==0.2.60
+langgraph-checkpoint==2.0.9
+
+# ---------- 大模型客户端：阿里云百炼 DashScope ----------
+dashscope==1.20.14
+
+# ---------- 向量库：PGVector / PostgreSQL ----------
+# 注：SQLAlchemy 由 langchain-postgres 传递依赖决定版本，此处不锁定
+psycopg[binary,pool]==3.2.3
+pgvector==0.3.6
+
+# ---------- 文档加载与切分 ----------
+pypdf==5.1.0
+markdown==3.7
+beautifulsoup4==4.12.3
+lxml==5.3.0

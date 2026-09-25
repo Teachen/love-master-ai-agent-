@@ -1,0 +1,82 @@
+{
+    "name" : "恋爱大师",
+    "appid" : "__UNI__718998A",
+    "description" : "AI 情感顾问 - 恋爱大师 / 超级智能体",
+    "versionName" : "1.0.0",
+    "versionCode" : "100",
+    "transformPx" : false,
+    "vueVersion" : "3",
+    "app-plus" : {
+        "usingComponents" : true,
+        "nvueStyleCompiler" : "uni-app",
+        "compilerVersion" : 3,
+        "splashscreen" : {
+            "alwaysShowBeforeRender" : true,
+            "waiting" : true,
+            "autoclose" : true,
+            "delay" : 0
+        },
+        "modules" : {},
+        "distribute" : {
+            "android" : {
+                "permissions" : [],
+                "usesCleartextTraffic" : true
+            },
+            "ios" : {
+                "dSYMs" : false
+            },
+            "sdkConfigs" : {},
+            "icons" : {
+                "android" : {
+                    "hdpi" : "res/app-icons/android-72.png",
+                    "xhdpi" : "res/app-icons/android-96.png",
+                    "xxhdpi" : "res/app-icons/android-144.png",
+                    "xxxhdpi" : "res/app-icons/android-192.png"
+                },
+                "ios" : {
+                    "appstore" : "res/app-icons/icon-1024.png",
+                    "iphone" : {
+                        "app@2x" : "res/app-icons/ios-120.png",
+                        "app@3x" : "res/app-icons/ios-180.png",
+                        "spotlight@2x" : "res/app-icons/ios-80.png",
+                        "spotlight@3x" : "res/app-icons/ios-120.png",
+                        "settings@2x" : "res/app-icons/ios-58.png",
+                        "settings@3x" : "res/app-icons/ios-87.png",
+                        "notification@2x" : "res/app-icons/ios-40.png",
+                        "notification@3x" : "res/app-icons/ios-60.png"
+                    },
+                    "ipad" : {
+                        "app" : "res/app-icons/ios-76.png",
+                        "app@2x" : "res/app-icons/ios-152.png",
+                        "proapp@2x" : "res/app-icons/ios-167.png",
+                        "spotlight" : "res/app-icons/ios-40.png",
+                        "spotlight@2x" : "res/app-icons/ios-80.png",
+                        "settings" : "res/app-icons/ios-29.png",
+                        "settings@2x" : "res/app-icons/ios-58.png",
+                        "notification" : "res/app-icons/ios-20.png",
+                        "notification@2x" : "res/app-icons/ios-40.png"
+                    }
+                }
+            }
+        }
+    },
+    "quickapp" : {},
+    "mp-weixin" : {
+        "appid" : "",
+        "setting" : {
+            "urlCheck" : false,
+            "es6" : true,
+            "minified" : true
+        },
+        "usingComponents" : true
+    },
+    "h5" : {
+        "router" : {
+            "mode" : "hash"
+        },
+        "devServer" : {
+            "https" : false
+        }
+    },
+    "locale" : "zh-Hans"
+}

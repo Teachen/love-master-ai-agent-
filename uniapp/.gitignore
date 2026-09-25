@@ -1,0 +1,32 @@
+# ---------- 依赖 ----------
+node_modules/
+.npm/
+.npmrc.local
+
+# ---------- 构建产物 ----------
+dist/
+unpackage/
+# uni-app 编译中间产物
+.hbuilderx/
+*.local
+
+# ---------- 环境变量（本地覆盖不提交，模板文件要提交） ----------
+.env.local
+.env.*.local
+.env.development.local
+.env.production.local
+.env.staging.local
+
+# ---------- 日志 ----------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- 编辑器 / 系统 ----------
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp

@@ -1,0 +1,30 @@
+/**
+ * uni-app 内置常用 SCSS 变量（可在此覆盖主题）
+ * 文档：https://uniapp.dcloud.net.cn/colors
+ */
+
+// 主题色（恋爱风格 - 粉红）
+$uni-color-primary: #ff4d6d;
+// 成功
+$uni-color-success: #4cd964;
+// 警告
+$uni-color-warning: #f0ad4e;
+// 错误
+$uni-color-error: #dd524d;
+
+// 文字基础色
+$uni-text-color: #333;
+$uni-text-color-grey: #999;
+$uni-text-color-placeholder: #808080;
+$uni-text-color-disable: #c0c0c0;
+
+// 背景色
+$uni-bg-color: #fff5f7;
+$uni-bg-color-grey: #f8f8f8;
+
+// 边框
+$uni-border-color: #e5e5e5;
+
+// 圆角
+$uni-border-radius-base: 12rpx;
+$uni-border-radius-lg: 24rpx;
