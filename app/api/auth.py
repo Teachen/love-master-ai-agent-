@@ -404,6 +404,84 @@ def _aliyun_rpc_post(endpoint: str, action: str, extra: dict) -> dict:
     return data
 
 
+# 阿里云业务错误码 → 怎么处理。
+#
+# 为什么必须有这张表：阿里云把「没开通」「配置错」「限流」「欠费」「号码非法」
+# 全部塞进同一个 Code 字段里，但它们的排查方向完全不同。
+# 之前这里写死了一句「（FUNCTION_NOT_OPENED = 还没开通短信认证）」，而它对
+# **任何**失败都附加 —— 用户真实遇到 biz.FREQUENCY（限流）时，
+# 这条提示会把人往「去控制台开通服务」的错误方向带，白折腾一轮。
+#
+# 用法见 _aliyun_fail()：先精确匹配，再按前缀/子串兜底。
+_ALIYUN_ERROR_HINTS: dict[str, str] = {
+    # ---- 号码认证（dypnsapi）----
+    "FUNCTION_NOT_OPENED": "还没开通短信认证：控制台 → 号码认证服务 → 短信认证 → 立即开通",
+    "biz.FREQUENCY": (
+        "发送频次超限（限流，不是配置错）。同一号码默认 1 条/分钟、5 条/小时、10 条/天；"
+        "分钟/小时按整点自然窗口计，天按滚动 24 小时计。处理：等 60 秒或等过整点再试、换一个号码、"
+        "到号码认证控制台「通用设置」查看并调高次数、或把测试号加入白名单（最多 300 个，不受流控）"
+    ),
+    "600016": "验证码发送频次超出限制（同 biz.FREQUENCY，见上一条）",
+    "MOBILE_NUMBER_ILLEGAL": "手机号格式非法：确认是 11 位大陆号码，且不带 +86 前缀",
+    "TEMPLATE_NOT_FOUND": "模板不存在或已删除：取控制台「短信认证参数管理」里赠送模板的模板 CODE",
+    "SIGNATURE_NOT_EXIST": "签名不存在：取控制台「短信认证参数管理」里赠送签名（赠送签名只能配赠送模板）",
+    "SIGN_NAME_AND_TEMPLATE_NOT_MATCH": "签名与模板不匹配：赠送签名必须搭配赠送模板，不能混用",
+    "isv.AMOUNT_NOT_ENOUGH": "账号余额不足：号码认证短信认证有赠送额度，用尽后需充值",
+    # ---- 短信服务（dysmsapi）----
+    "isv.BUSINESS_LIMIT_CONTROL": (
+        "触发阿里云限流：同签名同号码 1 条/分钟、5 条/小时、10 条/天，同号码跨签名 40 条/天。"
+        "等到下一个时间窗口再试，或在短信服务控制台「发送频率设置」调整（企业认证账号可调）"
+    ),
+    "isv.SMS_SIGNATURE_ILLEGAL": "签名不合法：签名需审核通过，且与模板归属同一主体",
+    "isv.SMS_TEMPLATE_ILLEGAL": "模板不合法：模板需审核通过，且 TemplateCode 填的是模板 CODE 而不是模板名",
+    "isv.INVALID_JSON_PARAM": "TemplateParam 里的变量名与模板里的 ${xxx} 不一致：用 ALIYUN_SMS_CODE_PARAM 对齐",
+    "InvalidDayuStatus.MESSAGE": "签名/模板状态异常（审核中或被驳回）：去控制台看审核状态",
+    # ---- 通用 ----
+    "InvalidAccessKeyId.NotFound": "AccessKeyId 不存在：检查 ALIYUN_ACCESS_KEY_ID 是否复制完整",
+    "SignatureDoesNotMatch": "签名校验失败：AccessKeySecret 不对（注意别把 AccessKeyId 填进 Secret）",
+    "InvalidSignature": "签名格式错误：通常是 Secret 填错或参数编码问题",
+    "Forbidden.RAM": "RAM 子账号没有该接口的权限：给子账号授权 AliyunDypnsFullAccess / AliyunDysmsFullAccess",
+    "InvalidTimeStamp.Expired": "请求时间戳过期：服务器时间不准（超过 31 分钟阿里云会拒收），请对齐系统时钟",
+}
+
+
+def _aliyun_error_hint(code: str, message: str = "") -> str:
+    """把阿里云的错误码翻成一句「下一步该干什么」。
+
+    匹配顺序：精确 → 前缀（如 isv. / biz.）→ 常见子串。
+    都不命中时返回空串，调用方就只展示原始 Code/Message，不乱猜。
+    """
+    raw = (code or "").strip()
+    if not raw:
+        return ""
+    if raw in _ALIYUN_ERROR_HINTS:
+        return _ALIYUN_ERROR_HINTS[raw]
+    upper = raw.upper()
+    for key, hint in _ALIYUN_ERROR_HINTS.items():
+        if upper == key.upper():
+            return hint
+    # 子串兜底：阿里云偶尔在 Code 外面再包一层前缀
+    for key, hint in _ALIYUN_ERROR_HINTS.items():
+        if key.lower() in raw.lower() or key in raw:
+            return hint
+    if "FREQUENCY" in upper or "LIMIT" in upper or "600016" in raw:
+        return _ALIYUN_ERROR_HINTS["biz.FREQUENCY"]
+    return ""
+
+
+def _aliyun_fail(prefix: str, data: dict) -> RuntimeError:
+    """统一构造阿里云失败异常：原始 Code/Message + 针对性处理建议。
+
+    原始错误码**必须原样保留** —— 它是唯一能拿去查文档/提工单的凭据，
+    提示语只是给人看的，不能替掉它。
+    """
+    code = str(data.get("Code") or "")
+    message = str(data.get("Message") or "")
+    base = f"{prefix} {code}: {message}".strip()
+    hint = _aliyun_error_hint(code, message)
+    return RuntimeError(f"{base} → {hint}" if hint else base)
+
+
 def _send_sms_by_aliyun(phone: str, code: str) -> str:
     """阿里云短信服务（dysmsapi）—— 需企业实名认证 + 自己申请的签名与模板。
 
@@ -434,7 +512,7 @@ def _send_sms_by_aliyun(phone: str, code: str) -> str:
         },
     )
     if data.get("Code") != "OK":
-        raise RuntimeError(f"阿里云短信失败 {data.get('Code')}: {data.get('Message')}")
+        raise _aliyun_fail("阿里云短信失败", data)
     return code
 
 
@@ -482,10 +560,7 @@ def _send_sms_by_aliyun_pnvs(phone: str, code: str) -> str:
         },
     )
     if data.get("Code") != "OK":
-        raise RuntimeError(
-            f"阿里云短信认证失败 {data.get('Code')}: {data.get('Message')}"
-            "（FUNCTION_NOT_OPENED = 还没在号码认证控制台开通短信认证）"
-        )
+        raise _aliyun_fail("阿里云短信认证失败", data)
     verify_code = str((data.get("Model") or {}).get("VerifyCode") or "").strip()
     if not verify_code:
         # 没回传验证码就说明配置与预期不符（比如模板变量名写错），

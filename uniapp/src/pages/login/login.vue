@@ -277,6 +277,15 @@ function markServiceDown(e) {
     serviceDown.value = true
     return true
   }
+  if (status === 502 || message.indexOf('短信发送失败') >= 0) {
+    // 502 = 短信通道报错（阿里云/腾讯云返回了业务错误）。
+    // 后端会带回「原始错误码 + 处理建议」，一整句话很长，
+    // uni.showToast 会把它截断成一句看不懂的半截话，
+    // 所以完整原文放页面横幅，toast 只提示看下方。
+    serviceDownText.value = message || '短信通道报错（502），请稍后重试'
+    serviceDown.value = true
+    return true
+  }
   if (status === 503 || message.indexOf('未就绪') >= 0 || message.indexOf('未配置') >= 0) {
     serviceDownText.value =
       '账号服务暂时不可用（' + (message || '后端数据库未就绪') +
@@ -330,8 +339,10 @@ async function onSendCode() {
     startCountdown(countdown, (t) => (timer = t), res.resendAfter || tickInterval.value)
     toast(res.devCode ? `验证码：${res.devCode}` : '验证码已发送')
   } catch (e) {
-    markServiceDown(e)
-    toast(e.message || '发送失败')
+    // 服务级错误（404/503/502）已经写进页面横幅了，
+    // toast 只给一句短的；429（发太频繁）这类用户能自己解决的仍显示原始文案。
+    if (markServiceDown(e)) toast(e.status === 502 ? '短信发送失败，原因见下方提示' : e.message || '发送失败')
+    else toast(e.message || '发送失败')
   }
 }
 
