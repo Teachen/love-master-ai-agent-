@@ -386,6 +386,12 @@ class Settings(BaseSettings):
             "smsReady": self.sms_ready,
             "smsMissing": self.sms_channel_missing,
             "smsDevCodeExposed": self.sms_dev_code_exposed,
+            # 签名与模板 CODE 不算秘密（签名本来就会显示在短信里），
+            # 暴露出来是为了「App 报 INVALID_PARAMETERS 时，
+            # 直接拿这里的值和阿里云控制台/门户调试成功的参数逐字比对」，
+            # 不用登服务器翻环境变量。
+            "smsSignName": self.aliyun_sms_sign_name,
+            "smsTemplateCode": self.aliyun_sms_template_code,
             "warnings": self.config_warnings,
         }
 

@@ -432,6 +432,14 @@ _ALIYUN_ERROR_HINTS: dict[str, str] = {
         "触发阿里云限流：同签名同号码 1 条/分钟、5 条/小时、10 条/天，同号码跨签名 40 条/天。"
         "等到下一个时间窗口再试，或在短信服务控制台「发送频率设置」调整（企业认证账号可调）"
     ),
+    "isv.INVALID_PARAMETERS": (
+        "签名或者模版无效：九成是 SignName / TemplateCode 不是本账号的赠送签名/赠送模板。"
+        "核对：① 与号码认证控制台「短信认证参数管理」显示的逐字一致；"
+        "② TemplateCode 是模板 CODE（如 100001）不是模板名称；"
+        "③ 阿里云门户调试成功 ≠ 后端配对了 —— 用 GET /api/health/config 的 "
+        "smsSignName/smsTemplateCode 与调试成功的参数比对，不一致就改云托管控制台"
+        "环境变量并重新发布版本"
+    ),
     "isv.SMS_SIGNATURE_ILLEGAL": "签名不合法：签名需审核通过，且与模板归属同一主体",
     "isv.SMS_TEMPLATE_ILLEGAL": "模板不合法：模板需审核通过，且 TemplateCode 填的是模板 CODE 而不是模板名",
     "isv.INVALID_JSON_PARAM": "TemplateParam 里的变量名与模板里的 ${xxx} 不一致：用 ALIYUN_SMS_CODE_PARAM 对齐",
