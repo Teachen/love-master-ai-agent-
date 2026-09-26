@@ -15,8 +15,23 @@ env/
 
 # ---------- 环境变量（严禁提交） ----------
 .env
-.env.local
-.env.*.local
+.env.dev
+.env.*.dev
+.env.prod
+
+# ---------- 密钥 / 凭据导出文件（严禁提交） ----------
+# 实测踩过：阿里云百炼控制台导出的 apiKey CSV 被 commit 进仓库并推到了 GitHub，
+# 整个历史里都带着真实的 sk- 密钥 —— 只能吊销重发，改文件已经没用了。
+*apiKey*.csv
+*apikey*.csv
+*-apiKey-*
+*密钥*.csv
+*凭据*.csv
+*.pem
+*.key
+*.p12
+credentials.json
+serviceAccount*.json
 
 # ---------- 运行时产物 ----------
 tmp/
