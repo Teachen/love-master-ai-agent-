@@ -385,6 +385,11 @@ class Settings(BaseSettings):
             # 排查「发送验证码不可用」时，先看这两项，不用去翻日志。
             "smsReady": self.sms_ready,
             "smsMissing": self.sms_channel_missing,
+            # 会不会真的扣短信费。之前只有 smsDevMode 一个布尔值，
+            # 「本地联调时到底有没有真发短信」只能靠人记着，
+            # 而本地和线上共用同一个阿里云账号/签名/号码的频控额度
+            # （1 条/分钟、5 条/小时、10 条/天），本地狂点会挤掉线上的额度。
+            "smsRealSend": not self.sms_dev_mode,
             "smsDevCodeExposed": self.sms_dev_code_exposed,
             # 签名与模板 CODE 不算秘密（签名本来就会显示在短信里），
             # 暴露出来是为了「App 报 INVALID_PARAMETERS 时，

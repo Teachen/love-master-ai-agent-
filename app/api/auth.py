@@ -433,12 +433,19 @@ _ALIYUN_ERROR_HINTS: dict[str, str] = {
         "等到下一个时间窗口再试，或在短信服务控制台「发送频率设置」调整（企业认证账号可调）"
     ),
     "isv.INVALID_PARAMETERS": (
-        "签名或者模版无效：九成是 SignName / TemplateCode 不是本账号的赠送签名/赠送模板。"
-        "核对：① 与号码认证控制台「短信认证参数管理」显示的逐字一致；"
-        "② TemplateCode 是模板 CODE（如 100001）不是模板名称；"
-        "③ 阿里云门户调试成功 ≠ 后端配对了 —— 用 GET /api/health/config 的 "
-        "smsSignName/smsTemplateCode 与调试成功的参数比对，不一致就改云托管控制台"
-        "环境变量并重新发布版本"
+        "签名或者模版无效。两种 Message 对应两层问题："
+        "『签名或者模版无效』= 签名主体不匹配：赠送签名的「签名名库」里有多个主体的签名"
+        "（恒启众/恒创联众科技/北京恒创联众…都显示已通过），但**只有与你账号主体匹配的签名**能实际下发"
+        " —— 逐个实测（探针号码用非法号，零成本），报 ILLEGAL_MOBILE 的才是可用的；"
+        "『请检查模板内容与模板参数是否匹配』= TemplateParam 问题："
+        "本项目实测 ##code## 占位符在该账号/模板下不可用，改为服务端生成验证码、"
+        "TemplateParam 直接传实际值 {\"code\":\"<6位数字>\",\"min\":\"5\"} 后成功（min=ValidTime/60）；"
+        "其余排查：TemplateCode 填 CODE 不是模板名称；RAM 子账号需 AliyunDypnsFullAccess；"
+        "号码认证须开通在 AK 所属主账号下；自检脚本 python tmp/diag_pnvs_send.py"
+    ),
+    "ILLEGAL_MOBILE": (
+        "手机号格式不正确 —— 注意：**这个错误码出现说明签名/模板校验已经通过**"
+        "（校验顺序：签名/模板在前，手机号在后），是排查时的好消息信号"
     ),
     "isv.SMS_SIGNATURE_ILLEGAL": "签名不合法：签名需审核通过，且与模板归属同一主体",
     "isv.SMS_TEMPLATE_ILLEGAL": "模板不合法：模板需审核通过，且 TemplateCode 填的是模板 CODE 而不是模板名",
@@ -531,10 +538,16 @@ def _send_sms_by_aliyun_pnvs(phone: str, code: str) -> str:
     所以个人认证账号也能开通。代价是签名不能自定义（短信里【】内是阿里云分配的名字），
     且赠送签名必须搭配赠送模板使用。
 
-    验证码由阿里云侧生成：TemplateParam 传占位符 "##code##" + ReturnVerifyCode=true，
-    接口会把生成的验证码放在 Model.VerifyCode 里返回来。
-    所以本函数**返回实际下发的验证码**而不是入参 code —— 上层要用它落库，
-    否则用户收到的码和我们存的码不一致，永远校验不过。
+    验证码由**本项目服务端生成**（入参 code 直接下发）。
+    曾经按官方文档用 "##code##" 占位符（阿里云生成 + ReturnVerifyCode 回传），
+    实测在本账号的赠送模板下被拒："请检查模板内容与模板参数是否匹配"；
+    直接传实际验证码值则发送成功 —— 官方两种都写了，取实测可用的后者。
+    所以本函数返回入参 code（自己生成的那个），与上层落库逻辑天然一致。
+
+    踩坑记录（排查数小时的三个连环坑，详见 docs/短信服务开通指南.md 6.2-6.4）：
+    ① 赠送签名名库里多个主体的签名"显示已通过"但只有同主体的能配模板（恒启众不行、北京恒创联众行）；
+    ② TemplateParam 必须传齐模板的全部变量（$code$ + $min$），只传 code 报 INVALID_PARAMETERS；
+    ③ min 的值填有效期的分钟数，与 ValidTime 保持一致。
     """
     import json as _json
 
@@ -547,6 +560,12 @@ def _send_sms_by_aliyun_pnvs(phone: str, code: str) -> str:
         )
 
     code_param = settings.aliyun_sms_code_param.strip() or "code"
+    # ⚠️ 赠送模板（如 100001 登录/注册模板）有 $code$ 和 $min$ 两个变量，
+    # TemplateParam 必须把两个都传齐 —— 只传 code 会报 isv.INVALID_PARAMETERS
+    # （文案是"签名或者模版无效"，极有误导性，实际是模板变量不全）。
+    # $min$ 填验证码有效期的分钟数，与 ValidTime 保持一致。
+    # separators 用紧凑格式，与官方文档示例保持一致。
+    min_minutes = str(max(1, settings.sms_code_ttl // 60))
     data = _aliyun_rpc_post(
         "dypnsapi.aliyuncs.com",
         "SendSmsVerifyCode",
@@ -555,7 +574,9 @@ def _send_sms_by_aliyun_pnvs(phone: str, code: str) -> str:
             "CountryCode": "86",
             "SignName": sign_name,
             "TemplateCode": template_code,
-            "TemplateParam": _json.dumps({code_param: "##code##"}),
+            "TemplateParam": _json.dumps(
+                {code_param: code, "min": min_minutes}, separators=(",", ":")
+            ),
             # 与本地校验的位数保持一致：我们自己也是存 6 位
             "CodeLength": "6",
             "CodeType": "1",
@@ -563,21 +584,11 @@ def _send_sms_by_aliyun_pnvs(phone: str, code: str) -> str:
             "Interval": str(settings.sms_send_interval),
             # 同一个号码在有效期内重复发送时，旧验证码作废（避免用户拿旧码反复试）
             "DuplicatePolicy": "1",
-            "ReturnVerifyCode": "true",
-            "AutoRetry": "1",
         },
     )
     if data.get("Code") != "OK":
         raise _aliyun_fail("阿里云短信认证失败", data)
-    verify_code = str((data.get("Model") or {}).get("VerifyCode") or "").strip()
-    if not verify_code:
-        # 没回传验证码就说明配置与预期不符（比如模板变量名写错），
-        # 此时绝不能返回入参 code：那样用户收到的会是别的码，登录必然失败
-        raise RuntimeError(
-            "阿里云短信认证未回传验证码（Model.VerifyCode 为空）："
-            "请检查 RETURN_VERIFY_CODE 是否为 true、模板变量名是否与模板一致"
-        )
-    return verify_code
+    return code
 
 
 def _send_sms_real(phone: str, code: str) -> str:
