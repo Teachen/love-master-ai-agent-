@@ -3,7 +3,8 @@
     <!-- 顶部会话信息条：展示自动生成的 chatId，可复制 -->
     <view class="toolbar">
       <text class="chat-id" @click="copyChatId">会话 ID：{{ chatId }}</text>
-      <text class="toolbar-btn" @click="confirmClear">重新开始</text>
+      <text v-if="readonly" class="toolbar-tag">历史查看</text>
+      <text v-else class="toolbar-btn" @click="confirmClear">重新开始</text>
     </view>
 
     <!-- 聊天记录 -->
@@ -53,8 +54,8 @@
       </view>
     </scroll-view>
 
-    <!-- 输入区 -->
-    <view class="input-bar">
+    <!-- 输入区（历史查看模式下隐藏） -->
+    <view v-if="!readonly" class="input-bar">
       <textarea
         class="input"
         v-model="inputValue"
@@ -85,6 +86,7 @@ import { ref, nextTick, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { createSse } from '@/utils/sse'
 import { genChatId } from '@/utils/id'
+import { loadSession, loadSessionAsync, saveSession, latestSessionId } from '@/utils/chatStore'
 
 const props = defineProps({
   // 主题：love（粉红）/ manus（紫）
@@ -94,6 +96,12 @@ const props = defineProps({
   aiAvatar: { type: String, default: '❤' },
   // 由页面注入：根据消息文本 + chatId 构造 SSE 完整 URL
   buildSseUrl: { type: Function, required: true },
+  // 从「历史记录」进入时传入，用于加载指定会话
+  sessionId: { type: String, default: '' },
+  // 只读模式：仅查看历史，不显示输入区
+  readonly: { type: Boolean, default: false },
+  // 进入后自动发出的第一条消息（AI 助手页的「常用话题」走这条路）
+  initialMessage: { type: String, default: '' },
 })
 
 const chatId = ref('')
@@ -109,9 +117,103 @@ let streamingId = null
 // 滚动触发计数：scroll-top 值不变时平台不会重新滚动，需保证每次都有变化
 let scrollTick = 0
 
-// 进入页面生成会话 ID（区分不同会话）
-onLoad(() => {
+/** 消息时间戳（HH:MM），导出 PDF 时展示 */
+function nowTime() {
+  const d = new Date()
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+/* ------------------------------------------------------------------ *
+ * 持久化：把当前会话写入本地存储
+ *
+ * 流式输出过程中高频调用，因此默认走 500ms 节流；
+ * 一轮结束（完成 / 失败 / 主动停止）时立即落盘，避免返回上一页后丢失。
+ * ------------------------------------------------------------------ */
+let saveTimer = null
+function persist(immediate = false) {
+  const doSave = () => {
+    saveTimer = null
+    saveSession({
+      id: chatId.value,
+      theme: props.theme,
+      messages: messages.value,
+    })
+  }
+  if (immediate) {
+    if (saveTimer) {
+      clearTimeout(saveTimer)
+      saveTimer = null
+    }
+    doSave()
+    return
+  }
+  if (saveTimer) return
+  saveTimer = setTimeout(doSave, 500)
+}
+
+/** 把存储里的会话还原成组件消息结构 */
+function restore(session) {
+  const list = (session.messages || []).map((m, i) => ({
+    id: i + 1,
+    role: m.role,
+    content: m.content || '',
+    streaming: false,
+    time: m.time || '',
+  }))
+  messages.value = list
+  msgSeq = list.length
+}
+
+/**
+ * 带入的「常用话题」自动发出。
+ *
+ * 只在会话为空时发（已有历史就不打扰用户，也避免把话题重复插进老对话）；
+ * 只读模式下不发（那是查看历史，不该触发新请求）。
+ */
+function autoSendTopic() {
+  const text = (props.initialMessage || '').trim()
+  if (!text || props.readonly) return
+  if (messages.value.length) return
+  inputValue.value = text
+  send()
+}
+
+onLoad(async () => {
+  // 1) 调用方显式指定了会话 id：按 id 精确恢复（远程优先，本地兜底）
+  //
+  //    两个曾经的坑都在这里：
+  //    a) 只查本地 → 后端开着 MySQL、换设备后本地没有该会话，会静默退回下面的
+  //       「恢复最近一次」，结果点开 A 会话却显示 B 的内容。改用 loadSessionAsync。
+  //    b) 本地查不到就退回「恢复最近一次」→ 首页点「新建对话」传进来的新 id
+  //       查不到，于是又续上了旧对话。现在改为「按传入的 id 开新会话」。
+  if (props.sessionId) {
+    const s = await loadSessionAsync(props.sessionId)
+    if (s && (s.messages || []).length) {
+      chatId.value = s.id || props.sessionId
+      restore(s)
+      scrollToBottom()
+      return
+    }
+    // 查不到（全新会话）→ 用调用方给的 id 开一条空会话
+    chatId.value = props.sessionId
+    autoSendTopic()
+    return
+  }
+
+  // 2) 未指定 id：恢复本主题最近一次会话（解决「返回再进来记录没了」）
+  const lastId = latestSessionId(props.theme)
+  if (lastId) {
+    const s = loadSession(lastId)
+    if (s && (s.messages || []).length) {
+      chatId.value = s.id
+      restore(s)
+      scrollToBottom()
+      return
+    }
+  }
+  // 3) 没有任何历史：开新会话
   chatId.value = genChatId(props.theme)
+  autoSendTopic()
 })
 
 function nextId() {
@@ -132,7 +234,13 @@ function send() {
   if (!text || loading.value) return
 
   // 用户消息
-  messages.value.push({ id: nextId(), role: 'user', content: text, streaming: false })
+  messages.value.push({
+    id: nextId(),
+    role: 'user',
+    content: text,
+    streaming: false,
+    time: nowTime(),
+  })
   inputValue.value = ''
   loading.value = true
   scrollToBottom()
@@ -140,8 +248,15 @@ function send() {
   // AI 占位消息（流式填充）
   const aiId = nextId()
   streamingId = aiId
-  messages.value.push({ id: aiId, role: 'ai', content: '', streaming: true })
+  messages.value.push({
+    id: aiId,
+    role: 'ai',
+    content: '',
+    streaming: true,
+    time: nowTime(),
+  })
   scrollToBottom()
+  persist(true) // 用户消息立即落盘，中途退出也不丢
 
   currentSse = createSse({
     url: props.buildSseUrl(text, chatId.value),
@@ -170,6 +285,7 @@ function stop() {
   }
   loading.value = false
   streamingId = null
+  persist(true)
   scrollToBottom()
 }
 
@@ -178,6 +294,7 @@ function appendAi(id, chunk) {
   if (msg) {
     msg.content += chunk
     scrollToBottom()
+    persist() // 流式过程中节流保存
   }
 }
 
@@ -187,6 +304,7 @@ function finishAi(id) {
   loading.value = false
   currentSse = null
   streamingId = null
+  persist(true)
   // 流式结束后再滚一次：去掉打字光标后文字会重新折行，避免最后一行被挤出可视区
   scrollToBottom()
 }
@@ -200,6 +318,7 @@ function failAi(id, errText) {
   loading.value = false
   currentSse = null
   streamingId = null
+  persist(true)
   scrollToBottom()
 }
 
@@ -282,6 +401,8 @@ defineExpose({ clearHistory, chatId, copyChatId })
 
 onUnmounted(() => {
   if (currentSse) currentSse.close()
+  // 离页兜底：立即保存，避免节流窗口内退出导致最后一段回复丢失
+  if (messages.value.length) persist(true)
 })
 </script>
 
@@ -336,6 +457,14 @@ onUnmounted(() => {
 .theme-manus .toolbar-btn {
   color: #6c5ce7;
   border-color: #6c5ce7;
+}
+.toolbar-tag {
+  flex-shrink: 0;
+  font-size: 22rpx;
+  color: #999;
+  padding: 6rpx 18rpx;
+  background: #f5f6f8;
+  border-radius: 24rpx;
 }
 
 .chat-inner {

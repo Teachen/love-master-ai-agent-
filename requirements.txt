@@ -33,6 +33,12 @@ dashscope==1.20.14
 psycopg[binary,pool]==3.2.3
 pgvector==0.3.6
 
+# ---------- 对话历史存储：MySQL ----------
+# 用 PyMySQL（纯 Python，无编译依赖，云上构建快）。
+# SQLAlchemy 本身由 langchain-postgres 传递依赖带进来，无需额外声明。
+pymysql==1.1.1
+cryptography==44.0.0  # MySQL 8 的 caching_sha2_password 认证需要
+
 # ---------- 文档加载与切分 ----------
 pypdf==5.1.0
 markdown==3.7

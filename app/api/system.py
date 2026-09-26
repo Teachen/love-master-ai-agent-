@@ -23,6 +23,16 @@ async def health() -> HealthResponse:
     )
 
 
+@router.get("/health/config", summary="当前生效的配置摘要（不含敏感值）")
+def health_config() -> dict:
+    """排查「线上配置到底生效了没」时直接 curl 这个接口。
+
+    只返回环境名、加载了哪些配置文件、各项开关状态与安全告警，
+    不含任何密钥值，可以放心留在生产环境。
+    """
+    return settings.config_summary
+
+
 @router.get("/knowledge/backend", summary="RAG 数据源诊断")
 def knowledge_backend(check: bool = False) -> dict:
     """查看当前 RAG 用的是本地向量库还是百炼知识库。

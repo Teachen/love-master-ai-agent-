@@ -432,6 +432,41 @@ function scrollToBottom() {
 
 ---
 
+## 四之三、对话历史与 PDF 导出
+
+### 解决的问题
+以前从对话页返回上一页再进来，消息全没了 —— 原实现每次 `onLoad` 都新建会话 ID，
+且消息只存在于组件内存里。现在会话会自动持久化。
+
+### 存储结构（本地存储，三端一致）
+| key | 内容 |
+|---|---|
+| `LM_CHAT_INDEX` | 会话列表：`[{id, title, theme, updatedAt, preview, msgCount}]`，按更新时间倒序 |
+| `LM_CHAT_<id>` | 单个会话全文：`{id, title, theme, createdAt, updatedAt, messages}` |
+
+- 列表最多保留 **50 条**，超出淘汰最旧的；写入配额满时自动淘汰最旧会话后重试
+- 保存时机：用户发消息**立即**落盘；流式回复过程 500ms 节流；
+  一轮结束（完成 / 失败 / 停止）与**离开页面**时立即保存
+- 进入对话页的恢复顺序：URL 带 `chatId`（从历史进入）→ 本主题最近一次会话 → 新建
+
+### 导出 PDF
+流程：前端把整段对话回传后端渲染 → 后端返回文件 URL → 前端下载/打开。
+
+| 端 | 方式 |
+|---|---|
+| H5 | `a[download]` 触发浏览器下载 |
+| App | `uni.downloadFile` → `uni.openDocument` |
+| 微信小程序 | `uni.downloadFile` → `uni.openDocument` |
+
+后端接口：`POST /api/ai/chat/export-pdf`，请求体 `{title, chatId, messages[]}`，
+返回 `{"ok":true,"url":"/api/files/xxx.pdf","filename":"..."}`，
+前端拼接 `getServerBase() + url` 即为完整地址。
+
+> PDF 用 reportlab + 内置 CID 字体 **STSong-Light** 生成中文，
+> **不需要任何外部字体文件**，云上镜像零额外资源即可导出。
+> 文件落在容器 `tmp/pdf/`（由 `/api/files` 静态目录提供），
+> **容器重启会丢失**，仅作下载中转；要长期保存请接对象存储。
+
 ## 五、常见问题
 
 **Q1：H5 报跨域？**

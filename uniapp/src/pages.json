@@ -9,6 +9,22 @@
       }
     },
     {
+      "path": "pages/apps/apps",
+      "style": {
+        "navigationBarTitleText": "AI 助手",
+        "navigationBarBackgroundColor": "#ff4d6d",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/mine/mine",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#ff4d6d",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
       "path": "pages/love/love",
       "style": {
         "navigationBarTitleText": "AI 恋爱大师",
@@ -23,13 +39,63 @@
         "navigationBarBackgroundColor": "#6c5ce7",
         "navigationBarTextStyle": "white"
       }
+    },
+    {
+      "path": "pages/history/history",
+      "style": {
+        "navigationBarTitleText": "对话记录管理",
+        "navigationBarBackgroundColor": "#ff4d6d",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录 / 账号",
+        "navigationBarBackgroundColor": "#ff4d6d",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/profile/profile",
+      "style": {
+        "navigationBarTitleText": "个人资料",
+        "navigationBarBackgroundColor": "#ff4d6d",
+        "navigationBarTextStyle": "white"
+      }
     }
   ],
+  "tabBar": {
+    "color": "#9aa0a6",
+    "selectedColor": "#ff4d6d",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "消息",
+        "iconPath": "static/tabbar/chat.png",
+        "selectedIconPath": "static/tabbar/chat-active.png"
+      },
+      {
+        "pagePath": "pages/apps/apps",
+        "text": "AI 助手",
+        "iconPath": "static/tabbar/ai.png",
+        "selectedIconPath": "static/tabbar/ai-active.png"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的",
+        "iconPath": "static/tabbar/mine.png",
+        "selectedIconPath": "static/tabbar/mine-active.png"
+      }
+    ]
+  },
   "globalStyle": {
     "navigationBarTextStyle": "white",
     "navigationBarTitleText": "恋爱大师",
     "navigationBarBackgroundColor": "#ff4d6d",
-    "backgroundColor": "#fff5f7",
+    "backgroundColor": "#f6f6f8",
     "backgroundTextStyle": "dark"
   }
 }

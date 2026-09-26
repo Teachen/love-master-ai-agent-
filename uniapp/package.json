@@ -9,6 +9,12 @@
     "build:h5": "uni build",
     "build:mp-weixin": "uni build -p mp-weixin",
     "build:app": "uni build -p app",
+    "dev:h5:staging": "uni --mode staging",
+    "build:h5:staging": "uni build --mode staging",
+    "build:mp-weixin:staging": "uni build -p mp-weixin --mode staging",
+    "dev:h5:e2e": "uni --mode e2e",
+    "build:h5:e2e": "uni build --mode e2e",
+    "build:mp-weixin:e2e": "uni build -p mp-weixin --mode e2e",
     "fix:deps": "node scripts/fix-deps.js"
   },
   "dependencies": {

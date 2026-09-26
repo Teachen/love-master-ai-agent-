@@ -16,10 +16,12 @@
 Ai恋爱大师-apiKey-*.csv
 
 # ---------- Python ----------
-__pycache__/
-*.py[cod]
+# 注意：dockerignore 里不含分隔符的 pattern 只匹配根目录，
+# 子目录的同名条目必须用 **/ 前缀才能排除
+**/__pycache__/
+**/*.py[cod]
 *.pyo
-*.egg-info/
+**/*.egg-info/
 .venv/
 venv/
 .pytest_cache/

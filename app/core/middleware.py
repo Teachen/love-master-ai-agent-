@@ -23,8 +23,21 @@ from app.utils import get_logger
 
 logger = get_logger("app.access")
 
-# 免鉴权路径前缀：文档 / 健康检查 / 静态杂项
-_PUBLIC_PREFIXES = ("/docs", "/redoc", "/openapi.json", "/api/health", "/favicon.ico")
+# 免鉴权路径前缀：文档 / 健康检查 / 静态杂项 / 导出文件下载 / 账号登录
+# 说明：
+# - /api/files 是「对话记录导出 PDF」的下载路径，若开启鉴权又希望前端免 Key 直下，
+#      就把它留在白名单；若要求下载也必须带 Key，从元组中移除即可。
+# - /api/auth 必须免 Key：登录接口本身是拿登录态的入口，
+#      如果要求先带产品级 API Key 才能登录，会形成死锁。
+_PUBLIC_PREFIXES = (
+    "/docs",
+    "/redoc",
+    "/openapi.json",
+    "/api/health",
+    "/api/files",
+    "/api/auth",
+    "/favicon.ico",
+)
 
 
 class ApiKeyMiddleware(BaseHTTPMiddleware):

@@ -15,10 +15,14 @@ SSE 规范要点：
 - 数据内部若含换行，须拆成多条 `data: ` 行（见 _sse_event）；
 - 前端用 EventSource 订阅，收到 [DONE] 后主动关闭连接。
 """
+from typing import Literal
+
 from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 
 from app.app import LoveApp
+from app.core.chat_pdf import render_chat_pdf
 from app.utils import get_logger
 
 logger = get_logger(__name__)
@@ -96,3 +100,48 @@ def manus_chat_sse(
         media_type="text/event-stream",
         headers=_SSE_HEADERS,
     )
+
+
+# ------------------------------------------------------------------ #
+# 对话记录导出 PDF
+#
+# 前端会话历史存在本地存储，导出时把整段对话回传给后端渲染，
+# 后端返回可下载的文件 URL（由 main.py 挂载的 /api/files 静态目录提供）。
+# ------------------------------------------------------------------ #
+class ChatExportMessage(BaseModel):
+    """单条对话消息"""
+
+    role: Literal["user", "ai", "assistant", "system"] = "user"
+    content: str = ""
+    time: str = ""
+
+
+class ChatExportRequest(BaseModel):
+    """导出请求"""
+
+    title: str = Field(default="对话记录", description="PDF 标题")
+    chatId: str = Field(default="", description="会话 ID")
+    messages: list[ChatExportMessage] = Field(default_factory=list)
+
+
+@router.post("/chat/export-pdf", summary="对话记录导出 PDF")
+def export_chat_pdf(payload: ChatExportRequest) -> dict:
+    """把前端传来的对话记录渲染成中文 PDF，返回可下载的文件路径。
+
+    返回示例：``{"ok": true, "url": "/api/files/chat_xxx.pdf", "filename": "..."}``
+    前端拼接 ``getServerBase() + url`` 后下载 / 打开。
+    """
+    if not payload.messages:
+        return {"ok": False, "detail": "对话内容为空，无法导出"}
+
+    messages = [m.model_dump() for m in payload.messages]
+    path = render_chat_pdf(
+        messages=messages,
+        title=payload.title or "对话记录",
+        chat_id=payload.chatId,
+    )
+    return {
+        "ok": True,
+        "url": f"/api/files/{path.name}",
+        "filename": path.name,
+    }
